@@ -62,6 +62,7 @@ pub fn build_claims(
 }
 
 /// 构建游客 claims（scope 严格限定单一资源）。
+#[allow(clippy::too_many_arguments)]
 pub fn build_guest_claims(
     grant_id: Uuid,
     display_name: &str,

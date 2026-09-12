@@ -370,6 +370,7 @@ pub async fn revoke_all_user_tokens(
 }
 
 /// 创建游客票据。
+#[allow(clippy::too_many_arguments)]
 pub async fn insert_guest_grant(
     db: &DatabaseConnection,
     resource_type: &str,
