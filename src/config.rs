@@ -37,6 +37,8 @@ pub struct Config {
     pub dev_mode: bool,
     /// 账号邮箱域名白名单（空 = 不限制）。
     pub account_email_domains: Vec<String>,
+    /// 内部服务令牌共享密钥（服务间 HMAC 签名）。
+    pub internal_secret: String,
     /// 首次启动时创建的超级管理员邮箱。
     pub bootstrap_admin_email: Option<String>,
     /// 首次启动时创建的超级管理员密码（空则随机生成并打印一次）。
@@ -88,6 +90,9 @@ impl Config {
             key_dir: PathBuf::from(get("KEY_DIR").unwrap_or("data/keys")),
             dev_mode: parse_bool(map, "DEV_MODE", false)?,
             account_email_domains: parse_list(map, "ACCOUNT_EMAIL_DOMAINS"),
+            internal_secret: get("INTERNAL_SERVICE_SECRET")
+                .unwrap_or("dev-internal-secret")
+                .to_string(),
             bootstrap_admin_email: get("BOOTSTRAP_ADMIN_EMAIL").map(str::to_string),
             bootstrap_admin_password: get("BOOTSTRAP_ADMIN_PASSWORD").map(str::to_string),
             bootstrap_admin_nickname: get("BOOTSTRAP_ADMIN_NICKNAME")

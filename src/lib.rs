@@ -14,4 +14,45 @@
 pub mod clock;
 pub mod config;
 pub mod crypto;
+/// 数据库连接辅助。
+pub mod db;
+/// 领域逻辑（纯函数）。
+pub mod domain;
+/// 对外 DTO。
+pub mod dto;
+/// SeaORM 实体。
+pub mod entity;
+/// JWT 密钥管理。
+pub mod keys;
 pub mod mailer;
+/// 数据库迁移。
+pub mod migration;
+/// 数据访问层。
+pub mod repo;
+/// HTTP 路由。
+pub mod routes;
+/// 应用状态。
+pub mod state;
+
+use axum::Router;
+use tower_http::trace::TraceLayer;
+
+use crate::state::SharedState;
+
+/// 构建完整的 HTTP 路由（/healthz、/readyz、OIDC 端点与 /api/v1/auth/*）。
+pub fn build_router(state: SharedState) -> Router {
+    Router::new()
+        .route("/healthz", axum::routing::get(routes::health::healthz))
+        .route("/readyz", axum::routing::get(routes::health::readyz))
+        .route(
+            "/.well-known/openid-configuration",
+            axum::routing::get(routes::oidc::discovery),
+        )
+        .route(
+            "/.well-known/jwks.json",
+            axum::routing::get(routes::oidc::jwks),
+        )
+        .nest("/api/v1/auth", routes::router())
+        .layer(TraceLayer::new_for_http())
+        .with_state(state)
+}
