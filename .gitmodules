@@ -1,0 +1,3 @@
+[submodule "libs"]
+	path = libs
+	url = /Users/sunyu/Projects/club-oa/.repos/club-oa-libs
