@@ -77,16 +77,8 @@ impl Config {
             issuer,
             web_base_url,
             access_token_ttl_seconds: parse_i64(map, "ACCESS_TOKEN_TTL", DEFAULT_ACCESS_TTL)?,
-            refresh_token_ttl_seconds: parse_i64(
-                map,
-                "REFRESH_TOKEN_TTL",
-                DEFAULT_REFRESH_TTL,
-            )?,
-            activation_ttl_seconds: parse_i64(
-                map,
-                "ACTIVATION_TOKEN_TTL",
-                DEFAULT_ACTIVATION_TTL,
-            )?,
+            refresh_token_ttl_seconds: parse_i64(map, "REFRESH_TOKEN_TTL", DEFAULT_REFRESH_TTL)?,
+            activation_ttl_seconds: parse_i64(map, "ACTIVATION_TOKEN_TTL", DEFAULT_ACTIVATION_TTL)?,
             key_dir: PathBuf::from(get("KEY_DIR").unwrap_or("data/keys")),
             dev_mode: parse_bool(map, "DEV_MODE", false)?,
             account_email_domains: parse_list(map, "ACCOUNT_EMAIL_DOMAINS"),

@@ -34,7 +34,11 @@ mod tests {
     async fn log_mailer_always_succeeds() {
         let mailer = LogMailer;
         assert!(mailer
-            .send("a@b.cn", "激活账号", "请打开链接 https://oa.test/activate?token=x")
+            .send(
+                "a@b.cn",
+                "激活账号",
+                "请打开链接 https://oa.test/activate?token=x"
+            )
             .await
             .is_ok());
     }

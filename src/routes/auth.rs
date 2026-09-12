@@ -367,9 +367,13 @@ pub async fn activate(
     validate_new_password(&req.password)?;
     let now = state.now();
     let token_hash = crypto::hash_token(&req.token);
-    let Some(token) =
-        repo::consume_activation_token(&state.db, &token_hash, activation_token::PURPOSE_ACTIVATE, now)
-            .await?
+    let Some(token) = repo::consume_activation_token(
+        &state.db,
+        &token_hash,
+        activation_token::PURPOSE_ACTIVATE,
+        now,
+    )
+    .await?
     else {
         return Err(AppError::bad_request(
             "AUTH_TOKEN_INVALID",
@@ -425,10 +429,12 @@ pub async fn forgot_password(
             .send(
                 &user.email,
                 "重置你的社团 OA 密码",
-                &format!("你好 {}：\n\n请在 {} 小时内打开以下链接重置密码：\n{}\n",
+                &format!(
+                    "你好 {}：\n\n请在 {} 小时内打开以下链接重置密码：\n{}\n",
                     user.nickname,
                     state.config.activation_ttl_seconds / 3600,
-                    link),
+                    link
+                ),
             )
             .await?;
     }
@@ -443,9 +449,13 @@ pub async fn reset_password(
     validate_new_password(&req.password)?;
     let now = state.now();
     let token_hash = crypto::hash_token(&req.token);
-    let Some(token) =
-        repo::consume_activation_token(&state.db, &token_hash, activation_token::PURPOSE_RESET, now)
-            .await?
+    let Some(token) = repo::consume_activation_token(
+        &state.db,
+        &token_hash,
+        activation_token::PURPOSE_RESET,
+        now,
+    )
+    .await?
     else {
         return Err(AppError::bad_request(
             "AUTH_TOKEN_INVALID",
@@ -508,7 +518,10 @@ pub async fn change_password(
     validate_new_password(&req.new_password)?;
     let user = load_current_user(&state, &auth).await?;
     let Some(hash) = user.password_hash.as_deref() else {
-        return Err(AppError::bad_request("AUTH_NO_PASSWORD", "账号尚未设置密码"));
+        return Err(AppError::bad_request(
+            "AUTH_NO_PASSWORD",
+            "账号尚未设置密码",
+        ));
     };
     if !crypto::verify_password(&req.old_password, hash) {
         return Err(invalid_credentials());

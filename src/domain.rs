@@ -35,7 +35,10 @@ pub fn scopes_for(roles: &[String]) -> Vec<String> {
         .iter()
         .any(|role| role == "admin" || role == "superadmin");
     let _ = is_admin; // 当前管理员与成员模块范围一致，保留分支便于后续细分
-    MEMBER_SCOPES.iter().map(|scope| scope.to_string()).collect()
+    MEMBER_SCOPES
+        .iter()
+        .map(|scope| scope.to_string())
+        .collect()
 }
 
 /// 构建 Access Token claims。
@@ -171,7 +174,9 @@ mod tests {
     #[test]
     fn roles_are_parsed_defensively() {
         assert_eq!(
-            roles_of(&user_model(Json::Array(vec![Json::String("member".into())]))),
+            roles_of(&user_model(Json::Array(vec![Json::String(
+                "member".into()
+            )]))),
             vec!["member".to_string()]
         );
         assert!(roles_of(&user_model(Json::String("broken".into()))).is_empty());

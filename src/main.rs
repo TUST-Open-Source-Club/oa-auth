@@ -18,7 +18,9 @@ use auth_service::{build_router, crypto, db, repo};
 /// 初始化日志（RUST_LOG 控制级别，默认 info）。
 fn init_tracing() {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 }
 
@@ -91,7 +93,9 @@ async fn main() -> anyhow::Result<()> {
     let db = db::connect_with_schema(&config.database_url, "auth")
         .await
         .context("连接数据库失败")?;
-    Migrator::up(&db, None).await.context("执行数据库迁移失败")?;
+    Migrator::up(&db, None)
+        .await
+        .context("执行数据库迁移失败")?;
 
     let keys = SigningKeys::load_or_generate(&config.key_dir, config.dev_mode)
         .context("加载 JWT 密钥失败")?;

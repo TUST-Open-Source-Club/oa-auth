@@ -197,6 +197,12 @@ pub fn service_headers(app: &TestApp, service: &str, body: &[u8]) -> Vec<(&'stat
     ]
 }
 
+/// 以服务身份发送 GET 请求（空 body 签名）。
+pub async fn service_get(app: &TestApp, service: &str, uri: &str) -> TestResponse {
+    let headers = service_headers(app, service, b"");
+    request_with_headers(&app.app, "GET", uri, None, None, &headers).await
+}
+
 /// 以服务身份发送 POST JSON 请求。
 pub async fn service_post(app: &TestApp, service: &str, uri: &str, body: &Value) -> TestResponse {
     let body_bytes = serde_json::to_vec(body).expect("序列化请求体");

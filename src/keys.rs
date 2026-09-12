@@ -7,11 +7,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use jsonwebtoken::DecodingKey;
-use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding};
+use rsa::pkcs8::{
+    DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, LineEnding,
+};
 use rsa::traits::PublicKeyParts;
 use rsa::RsaPrivateKey;
 
-use club_auth_sdk::jwks::{jwk_from_rsa_public_components, Jwks, key_id_from_pem};
+use club_auth_sdk::jwks::{jwk_from_rsa_public_components, key_id_from_pem, Jwks};
 use club_auth_sdk::{encode_access_token, Claims, JwtError};
 
 /// Rsa 密钥位数（2048 足够 RS256，兼顾性能）。
@@ -166,8 +168,8 @@ mod tests {
         let keys = SigningKeys::generate().expect("generate");
         let claims = sample_claims("https://oa.test");
         let token = keys.encode(&claims).expect("sign");
-        let decoded = decode_access_token(&token, &keys.decoding_key, "https://oa.test")
-            .expect("verify");
+        let decoded =
+            decode_access_token(&token, &keys.decoding_key, "https://oa.test").expect("verify");
         assert_eq!(decoded, claims);
 
         let jwks = keys.jwks().expect("jwks");

@@ -141,7 +141,11 @@ impl MigrationTrait for Migration {
                             .string_len(64)
                             .not_null(),
                     )
-                    .col(ColumnDef::new(ActivationTokens::Purpose).string_len(16).not_null())
+                    .col(
+                        ColumnDef::new(ActivationTokens::Purpose)
+                            .string_len(16)
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(ActivationTokens::ExpiresAt)
                             .timestamp_with_time_zone()
@@ -173,7 +177,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(GuestGrants::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(GuestGrants::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(GuestGrants::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(
                         ColumnDef::new(GuestGrants::ResourceType)
                             .string_len(32)
@@ -233,7 +242,12 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AuditLogs::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(AuditLogs::Id).uuid().not_null().primary_key())
+                    .col(
+                        ColumnDef::new(AuditLogs::Id)
+                            .uuid()
+                            .not_null()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(AuditLogs::ActorId).uuid())
                     .col(ColumnDef::new(AuditLogs::Action).string_len(64).not_null())
                     .col(ColumnDef::new(AuditLogs::TargetType).string_len(32))

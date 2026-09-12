@@ -216,8 +216,14 @@ async fn jwks_discovery_and_token_kid_match() {
     let header = jsonwebtoken::decode_header(&access).expect("解码 JWT 头部");
     assert_eq!(header.kid.as_deref(), Some(kid), "JWT kid 应与 JWKS 一致");
 
-    let discovery =
-        request(&app.app, "GET", "/.well-known/openid-configuration", None, None).await;
+    let discovery = request(
+        &app.app,
+        "GET",
+        "/.well-known/openid-configuration",
+        None,
+        None,
+    )
+    .await;
     let discovery = discovery.expect(StatusCode::OK);
     assert_eq!(discovery["issuer"], "https://oa.test");
     assert!(discovery["jwks_uri"]
@@ -328,7 +334,14 @@ async fn admin_create_validates_email_domain_username_and_duplicates() {
         .as_str()
         .unwrap()
         .to_string();
-    let forbidden = request(&app.app, "GET", "/api/v1/auth/admin/users", Some(&dave_token), None).await;
+    let forbidden = request(
+        &app.app,
+        "GET",
+        "/api/v1/auth/admin/users",
+        Some(&dave_token),
+        None,
+    )
+    .await;
     forbidden.expect(StatusCode::FORBIDDEN);
 }
 

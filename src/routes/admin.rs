@@ -158,7 +158,11 @@ pub async fn create_user(
     }
 
     let roles = req.roles.unwrap_or_else(|| vec!["member".to_string()]);
-    if roles.is_empty() || roles.iter().any(|role| !ALLOWED_ROLES.contains(&role.as_str())) {
+    if roles.is_empty()
+        || roles
+            .iter()
+            .any(|role| !ALLOWED_ROLES.contains(&role.as_str()))
+    {
         return Err(AppError::unprocessable(
             "AUTH_VALIDATION",
             "角色不合法",
@@ -306,15 +310,9 @@ pub async fn patch_user(
         .await?;
     }
     if req.nickname.is_some() || req.department.is_some() {
-        updated = repo::update_user_profile(
-            &state.db,
-            &updated,
-            req.nickname,
-            None,
-            req.department,
-            now,
-        )
-        .await?;
+        updated =
+            repo::update_user_profile(&state.db, &updated, req.nickname, None, req.department, now)
+                .await?;
     }
     Ok(Json(UserDto::from(&updated)))
 }

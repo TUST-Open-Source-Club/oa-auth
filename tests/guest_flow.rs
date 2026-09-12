@@ -39,12 +39,9 @@ async fn guest_ticket_exchange_limits_uses_and_scopes_token() {
     let access = exchanged["accessToken"].as_str().expect("游客令牌");
 
     // scope 必须严格限定单一资源，且标记为游客
-    let claims = club_auth_sdk::decode_access_token(
-        access,
-        &app.state.keys.decoding_key,
-        "https://oa.test",
-    )
-    .expect("验签游客令牌");
+    let claims =
+        club_auth_sdk::decode_access_token(access, &app.state.keys.decoding_key, "https://oa.test")
+            .expect("验签游客令牌");
     assert!(claims.guest);
     assert_eq!(claims.scopes, vec!["meeting:room-42"]);
     assert_eq!(claims.name, "访客甲");
@@ -114,7 +111,10 @@ async fn internal_endpoints_require_valid_service_token() {
         Some(&json!({ "resourceType": "meeting", "resourceId": "r1" })),
         &[
             ("x-service-name", "meeting".to_string()),
-            ("x-service-timestamp", app.state.now().timestamp().to_string()),
+            (
+                "x-service-timestamp",
+                app.state.now().timestamp().to_string(),
+            ),
             ("x-service-signature", "forged-signature".to_string()),
         ],
     )
@@ -130,6 +130,127 @@ async fn internal_endpoints_require_valid_service_token() {
     )
     .await;
     ok.expect(StatusCode::OK);
+}
+
+#[tokio::test]
+async fn guest_ticket_can_limit_to_multiple_uses() {
+    let app = spawn().await;
+    let grant = service_post(
+        &app,
+        "meeting",
+        "/api/v1/auth/internal/guest-grants",
+        &json!({ "resourceType": "meeting", "resourceId": "room-7", "maxUses": 2 }),
+    )
+    .await;
+    let ticket = grant.expect(StatusCode::OK)["ticket"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    for _ in 0..2 {
+        let exchanged = request(
+            &app.app,
+            "POST",
+            "/api/v1/auth/guest/exchange",
+            None,
+            Some(&json!({ "ticket": ticket })),
+        )
+        .await;
+        exchanged.expect(StatusCode::OK);
+    }
+    let third = request(
+        &app.app,
+        "POST",
+        "/api/v1/auth/guest/exchange",
+        None,
+        Some(&json!({ "ticket": ticket })),
+    )
+    .await;
+    third.expect(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn expired_guest_ticket_is_rejected() {
+    let app = spawn().await;
+    let now = app.state.now();
+    let ticket = auth_service::crypto::generate_token();
+    auth_service::repo::insert_guest_grant(
+        &app.state.db,
+        "meeting",
+        "room-expired",
+        auth_service::crypto::hash_token(&ticket),
+        0,
+        now - chrono::Duration::seconds(60),
+        None,
+        now - chrono::Duration::hours(1),
+    )
+    .await
+    .expect("插入过期票据");
+
+    let exchanged = request(
+        &app.app,
+        "POST",
+        "/api/v1/auth/guest/exchange",
+        None,
+        Some(&json!({ "ticket": ticket })),
+    )
+    .await;
+    let body = exchanged.expect(StatusCode::FORBIDDEN);
+    assert_eq!(body["code"], "AUTH_GUEST_TICKET_EXPIRED");
+}
+
+#[tokio::test]
+async fn internal_guest_grant_validates_resource_id() {
+    let app = spawn().await;
+    let empty_id = service_post(
+        &app,
+        "meeting",
+        "/api/v1/auth/internal/guest-grants",
+        &json!({ "resourceType": "meeting", "resourceId": "  " }),
+    )
+    .await;
+    empty_id.expect(StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn internal_get_user_and_batch_limit() {
+    let app = spawn().await;
+    let user_id = seed_active_user(
+        &app,
+        "grace@club.example.com",
+        "grace",
+        "Grace1234",
+        &["member"],
+    )
+    .await;
+
+    let found = service_get(
+        &app,
+        "im",
+        &format!("/api/v1/auth/internal/users/{user_id}"),
+    )
+    .await;
+    let found = found.expect(StatusCode::OK);
+    assert_eq!(found["username"], "grace");
+
+    let missing = service_get(
+        &app,
+        "im",
+        &format!("/api/v1/auth/internal/users/{}", uuid::Uuid::now_v7()),
+    )
+    .await;
+    missing.expect(StatusCode::NOT_FOUND);
+
+    // 批量超过 100 个 → 422
+    let ids: Vec<String> = (0..101).map(|_| uuid::Uuid::now_v7().to_string()).collect();
+    let too_many = service_post(
+        &app,
+        "im",
+        "/api/v1/auth/internal/users/batch",
+        &json!({ "ids": ids }),
+    )
+    .await;
+    too_many.expect(StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[tokio::test]

@@ -57,7 +57,9 @@ pub async fn insert_user(
         bio: Set(None),
         department: Set(new.department),
         status: Set(user::STATUS_PENDING.to_string()),
-        roles: Set(Value::Array(new.roles.into_iter().map(Value::String).collect())),
+        roles: Set(Value::Array(
+            new.roles.into_iter().map(Value::String).collect(),
+        )),
         created_at: Set(now.fixed_offset()),
         updated_at: Set(now.fixed_offset()),
     };
@@ -69,7 +71,10 @@ pub async fn find_user_by_id(
     db: &DatabaseConnection,
     id: Uuid,
 ) -> Result<Option<user::Model>, AppError> {
-    user::Entity::find_by_id(id).one(db).await.map_err(map_db_err)
+    user::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(map_db_err)
 }
 
 /// 按邮箱或登录名（不区分大小写）查询用户。
