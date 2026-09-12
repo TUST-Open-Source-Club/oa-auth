@@ -51,14 +51,28 @@ pub struct CreateUserResponse {
 }
 
 /// 用户列表查询参数。
+///
+/// 不使用 `#[serde(flatten)]`：serde_urlencoded 下 flatten 会把数字字段
+/// 当作字符串反序列化导致 400，这里显式声明分页字段。
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListUsersQuery {
-    /// 分页参数。
-    #[serde(flatten)]
-    pub page: PageParams,
+    /// 页码（从 1 开始）。
+    pub page: Option<u32>,
+    /// 每页条数。
+    pub page_size: Option<u32>,
     /// 关键字。
     pub q: Option<String>,
+}
+
+impl ListUsersQuery {
+    /// 转换为通用分页参数。
+    fn page_params(&self) -> PageParams {
+        PageParams {
+            page: self.page,
+            page_size: self.page_size,
+        }
+    }
 }
 
 /// 更新用户请求（None 表示不修改）。
@@ -242,9 +256,10 @@ pub async fn list_users(
     Query(query): Query<ListUsersQuery>,
 ) -> Result<Json<Page<UserDto>>, AppError> {
     admin.require_admin()?;
-    let (users, total) = repo::list_users(&state.db, query.q.as_deref(), &query.page).await?;
+    let page = query.page_params();
+    let (users, total) = repo::list_users(&state.db, query.q.as_deref(), &page).await?;
     let items = users.iter().map(UserDto::from).collect();
-    Ok(Json(Page::new(items, total, &query.page)))
+    Ok(Json(Page::new(items, total, &page)))
 }
 
 /// `PATCH /admin/users/{id}`：更新状态或资料。

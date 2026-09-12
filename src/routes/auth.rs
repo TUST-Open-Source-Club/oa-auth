@@ -218,6 +218,14 @@ pub async fn login(
     let user = repo::find_user_by_identifier(&state.db, &req.identifier)
         .await?
         .ok_or_else(invalid_credentials)?;
+    // 待激活账号（尚无密码）直接提示激活，避免用户困惑；
+    // 账号由管理员创建，此处不构成开放注册场景下的用户枚举风险。
+    if user.status == user::STATUS_PENDING && user.password_hash.is_none() {
+        return Err(AppError::forbidden(
+            "AUTH_PENDING_ACTIVATION",
+            "账号待激活，请先通过邮件中的链接设置密码",
+        ));
+    }
     let Some(hash) = user.password_hash.as_deref() else {
         return Err(invalid_credentials());
     };
