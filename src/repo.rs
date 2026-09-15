@@ -139,6 +139,22 @@ pub async fn list_users(
 }
 
 /// 搜索用户（供 IM 选人等场景，限制返回条数）。
+/// 按用户 ID 批量查询（单次最多 50，按昵称排序）。
+pub async fn find_users_by_ids(
+    db: &DatabaseConnection,
+    ids: &[Uuid],
+) -> Result<Vec<user::Model>, AppError> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    user::Entity::find()
+        .filter(user::Column::Id.is_in(ids.iter().copied().take(50)))
+        .order_by_asc(user::Column::Nickname)
+        .all(db)
+        .await
+        .map_err(map_db_err)
+}
+
 pub async fn search_users(
     db: &DatabaseConnection,
     query: &str,

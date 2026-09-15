@@ -40,6 +40,60 @@ async fn login_user(app: &TestApp, identifier: &str, password: &str) -> TestResp
     .await
 }
 
+
+#[tokio::test]
+async fn batch_users_lookup_by_ids() {
+    let app = spawn().await;
+    let _ = admin_token(&app).await;
+    seed_active_user(&app, "bob@club.example.com", "bob", "Bob12345", &["member"]).await;
+
+    let access = login_user(&app, "bob", "Bob12345").await.expect(StatusCode::OK)["accessToken"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let me = request(&app.app, "GET", "/api/v1/auth/me", Some(&access), None)
+        .await
+        .expect(StatusCode::OK);
+    let id = me["id"].as_str().unwrap().to_string();
+
+    // 批量查询命中
+    let found = request(
+        &app.app,
+        "GET",
+        &format!("/api/v1/auth/users?ids={id}"),
+        Some(&access),
+        None,
+    )
+    .await
+    .expect(StatusCode::OK);
+    let found = found.as_array().unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0]["username"], "bob");
+
+    // 未知 ID → 空数组
+    let missing = request(
+        &app.app,
+        "GET",
+        &format!("/api/v1/auth/users?ids={}", uuid::Uuid::now_v7()),
+        Some(&access),
+        None,
+    )
+    .await
+    .expect(StatusCode::OK);
+    assert!(missing.as_array().unwrap().is_empty());
+
+    // 非法 ID → 400
+    request(
+        &app.app,
+        "GET",
+        "/api/v1/auth/users?ids=not-a-uuid",
+        Some(&access),
+        None,
+    )
+    .await
+    .expect(StatusCode::BAD_REQUEST);
+}
+
 #[tokio::test]
 async fn health_and_ready_endpoints() {
     let app = spawn().await;

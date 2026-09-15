@@ -58,9 +58,10 @@ pub async fn spawn_with_env(extra: &[(&str, &str)]) -> TestApp {
         .expect("连接测试数据库失败（确认 club-oa-pg-test 容器已启动）");
     Migrator::up(&database, None).await.expect("测试迁移失败");
 
-    let fixed_now = DateTime::parse_from_rfc3339("2026-09-13T10:00:00Z")
-        .expect("固定时间")
-        .with_timezone(&Utc);
+    // 固定时钟取当前时间（截断到秒）：JWT 过期校验用的是真实系统时间，
+    // 写死日期会让用例随着时间推移出现 401。
+    let fixed_now = DateTime::<Utc>::from_timestamp(Utc::now().timestamp(), 0)
+        .expect("构造固定时钟");
     let mut env: HashMap<String, String> = HashMap::new();
     env.insert("DATABASE_URL".to_string(), url);
     env.insert("AUTH_ISSUER".to_string(), "https://oa.test".to_string());

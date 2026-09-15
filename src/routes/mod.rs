@@ -49,6 +49,7 @@ pub fn router() -> Router<SharedState> {
         // 登录用户接口
         .route("/me", get(auth::me).patch(auth::update_me))
         .route("/me/password", put(auth::change_password))
+        .route("/users", get(auth::list_users_by_ids))
         .route("/users/search", get(auth::search_users))
         // 管理员接口
         .route(

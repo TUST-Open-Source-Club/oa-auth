@@ -533,6 +533,37 @@ pub async fn change_password(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// 批量查询用户查询参数。
+#[derive(Debug, Deserialize)]
+pub struct BatchUsersQuery {
+    /// 逗号分隔的用户 ID（最多 50 个）。
+    pub ids: String,
+}
+
+/// `GET /users?ids=`：批量查询用户公开信息（登录用户可用，供 IM 展示昵称/头像）。
+pub async fn list_users_by_ids(
+    State(state): State<SharedState>,
+    _auth: AuthUser,
+    Query(query): Query<BatchUsersQuery>,
+) -> Result<Json<Vec<UserDto>>, AppError> {
+    let mut ids = Vec::new();
+    for raw in query.ids.split(',') {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            continue;
+        }
+        let id = raw
+            .parse::<Uuid>()
+            .map_err(|_| AppError::bad_request("AUTH_VALIDATION", "用户 ID 不合法"))?;
+        ids.push(id);
+        if ids.len() >= 50 {
+            break;
+        }
+    }
+    let users = repo::find_users_by_ids(&state.db, &ids).await?;
+    Ok(Json(users.iter().map(UserDto::from).collect()))
+}
+
 /// `GET /users/search`：按关键字搜索用户（供选人组件使用）。
 pub async fn search_users(
     State(state): State<SharedState>,
