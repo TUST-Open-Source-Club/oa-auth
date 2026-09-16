@@ -156,6 +156,8 @@ mod tests {
             roles: vec!["member".into()],
             scopes: vec!["im".into()],
             guest: false,
+            account_type: None,
+            bot_permissions: None,
             iss: iss.into(),
             iat: Utc::now().timestamp(),
             exp: Utc::now().timestamp() + 900,
