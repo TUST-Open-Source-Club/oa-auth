@@ -68,6 +68,8 @@ async fn bootstrap_admin(state: &AppState) -> anyhow::Result<()> {
             nickname: state.config.bootstrap_admin_nickname.clone(),
             department: None,
             roles: vec!["superadmin".to_string()],
+            account_type: "human".to_string(),
+            bot_permissions: serde_json::json!({}),
         },
         now,
     )

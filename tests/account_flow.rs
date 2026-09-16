@@ -379,3 +379,65 @@ async fn admin_reset_password_flow_and_error_branches() {
     .await;
     missing_reset.expect(StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn bot_account_flow() {
+    let app = spawn().await;
+    let token = admin_token(&app).await;
+
+    // 创建 Bot：直接激活并返回权限矩阵
+    let created = request(
+        &app.app,
+        "POST",
+        "/api/v1/auth/admin/users",
+        Some(&token),
+        Some(&json!({
+            "email": "bot@club.example.com",
+            "username": "helper-bot",
+            "nickname": "助手 Bot",
+            "accountType": "bot",
+            "password": "BotPass123",
+            "botPermissions": { "task": { "read": true, "write": true }, "im": { "read": true } }
+        })),
+    )
+    .await
+    .expect(StatusCode::OK);
+    assert_eq!(created["user"]["accountType"], "bot");
+    assert_eq!(created["user"]["botPermissions"]["task"]["write"], true);
+    assert_eq!(created["user"]["botPermissions"]["im"]["write"], false);
+
+    // Bot 可直接登录
+    let login = login_user(&app, "helper-bot", "BotPass123").await;
+    assert_eq!(login.expect(StatusCode::OK)["user"]["accountType"], "bot");
+
+    // 未知模块 → 422
+    request(
+        &app.app,
+        "POST",
+        "/api/v1/auth/admin/users",
+        Some(&token),
+        Some(&json!({
+            "email": "bad-bot@club.example.com",
+            "username": "bad-bot",
+            "accountType": "bot",
+            "password": "BotPass123",
+            "botPermissions": { "unknown": { "read": true } }
+        })),
+    )
+    .await
+    .expect(StatusCode::UNPROCESSABLE_ENTITY);
+
+    // 更新权限矩阵（覆盖式）
+    let user_id = created["user"]["id"].as_str().unwrap();
+    let patched = request(
+        &app.app,
+        "PATCH",
+        &format!("/api/v1/auth/admin/users/{user_id}"),
+        Some(&token),
+        Some(&json!({ "botPermissions": { "doc": { "read": true } } })),
+    )
+    .await
+    .expect(StatusCode::OK);
+    assert_eq!(patched["botPermissions"]["doc"]["read"], true);
+    assert!(patched["botPermissions"].get("task").is_none());
+}

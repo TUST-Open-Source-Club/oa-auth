@@ -150,6 +150,8 @@ mod tests {
             department: None,
             status: user::STATUS_ACTIVE.into(),
             roles,
+            account_type: "human".into(),
+            bot_permissions: serde_json::json!({}),
             created_at: now().fixed_offset(),
             updated_at: now().fixed_offset(),
         }

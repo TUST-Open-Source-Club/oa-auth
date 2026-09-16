@@ -39,6 +39,10 @@ pub struct NewUser {
     pub department: Option<String>,
     /// 角色列表。
     pub roles: Vec<String>,
+    /// 账号类型：human / bot。
+    pub account_type: String,
+    /// Bot 权限矩阵。
+    pub bot_permissions: Value,
 }
 
 /// 创建用户（默认待激活、无密码）。
@@ -60,10 +64,25 @@ pub async fn insert_user(
         roles: Set(Value::Array(
             new.roles.into_iter().map(Value::String).collect(),
         )),
+        account_type: Set(new.account_type),
+        bot_permissions: Set(new.bot_permissions),
         created_at: Set(now.fixed_offset()),
         updated_at: Set(now.fixed_offset()),
     };
     model.insert(db).await.map_err(map_db_err)
+}
+
+/// 更新 Bot 权限矩阵。
+pub async fn update_bot_permissions(
+    db: &DatabaseConnection,
+    user: &user::Model,
+    permissions: Value,
+    now: DateTime<Utc>,
+) -> Result<user::Model, AppError> {
+    let mut active: user::ActiveModel = user.clone().into();
+    active.bot_permissions = Set(permissions);
+    active.updated_at = Set(now.fixed_offset());
+    active.update(db).await.map_err(map_db_err)
 }
 
 /// 按 ID 查询用户。

@@ -34,6 +34,42 @@ pub struct CreateUserRequest {
     pub department: Option<String>,
     /// 角色（可选，默认 member）。
     pub roles: Option<Vec<String>>,
+    /// 账号类型：human（默认）/ bot。
+    pub account_type: Option<String>,
+    /// Bot 权限矩阵（accountType=bot 时生效）。
+    pub bot_permissions: Option<serde_json::Value>,
+    /// Bot 初始密码（accountType=bot 时必填，创建即激活）。
+    pub password: Option<String>,
+}
+
+/// Bot 可用模块。
+const BOT_MODULES: &[&str] = &["im", "task", "doc", "event", "drive", "notify"];
+
+/// 校验并归一化 Bot 权限矩阵（未知模块/非布尔值拒绝）。
+fn normalize_bot_permissions(
+    value: serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let Some(map) = value.as_object() else {
+        return Err(AppError::unprocessable(
+            "AUTH_VALIDATION",
+            "权限矩阵需为对象",
+            vec![FieldError::new("botPermissions", "格式错误")],
+        ));
+    };
+    let mut normalized = serde_json::Map::new();
+    for (module, entry) in map {
+        if !BOT_MODULES.contains(&module.as_str()) {
+            return Err(AppError::unprocessable(
+                "AUTH_VALIDATION",
+                "权限矩阵包含未知模块",
+                vec![FieldError::new("botPermissions", "模块不在白名单")],
+            ));
+        }
+        let read = entry.get("read").and_then(serde_json::Value::as_bool).unwrap_or(false);
+        let write = entry.get("write").and_then(serde_json::Value::as_bool).unwrap_or(false);
+        normalized.insert(module.clone(), serde_json::json!({ "read": read, "write": write }));
+    }
+    Ok(serde_json::Value::Object(normalized))
 }
 
 /// 创建账号响应；开发模式附带激活令牌便于本地联调。
@@ -85,6 +121,8 @@ pub struct PatchUserRequest {
     pub nickname: Option<String>,
     /// 部门/小组。
     pub department: Option<String>,
+    /// Bot 权限矩阵（覆盖式）。
+    pub bot_permissions: Option<serde_json::Value>,
 }
 
 /// 从邮箱本地部分推导登录名；无法得到合法登录名时返回 None。
@@ -181,6 +219,55 @@ pub async fn create_user(
         return Err(AppError::conflict("AUTH_USERNAME_TAKEN", "登录名已被使用"));
     }
 
+    if req.account_type.as_deref().unwrap_or("human") == "bot" {
+        let password = req.password.clone().unwrap_or_default();
+        if password.chars().count() < 8 {
+            return Err(AppError::unprocessable(
+                "AUTH_VALIDATION",
+                "Bot 密码至少 8 位",
+                vec![FieldError::new("password", "过短")],
+            ));
+        }
+        let permissions = normalize_bot_permissions(
+            req.bot_permissions.unwrap_or_else(|| serde_json::json!({})),
+        )?;
+        let now = state.now();
+        let nickname = req.nickname.unwrap_or_else(|| username.clone());
+        let user = repo::insert_user(
+            &state.db,
+            repo::NewUser {
+                email: email.clone(),
+                username: username.clone(),
+                nickname,
+                department: req.department,
+                roles,
+                account_type: "bot".to_string(),
+                bot_permissions: permissions,
+            },
+            now,
+        )
+        .await?;
+        let hash = crypto::hash_password(&password)?;
+        let user = repo::set_user_password(&state.db, &user, hash, now).await?;
+        repo::write_audit(
+            &state.db,
+            Some(admin.claims().sub.parse().unwrap_or(Uuid::nil())),
+            "user.create_bot",
+            Some("user"),
+            Some(&user.id.to_string()),
+            Some(serde_json::json!({ "email": email, "botPermissions": user.bot_permissions })),
+            ip,
+            user_agent,
+            now,
+        )
+        .await?;
+        return Ok(Json(CreateUserResponse {
+            user: UserDto::from(&user),
+            dev_activation_token: None,
+            dev_activation_url: None,
+        }));
+    }
+
     let now = state.now();
     let nickname = req.nickname.unwrap_or_else(|| username.clone());
     let user = repo::insert_user(
@@ -191,6 +278,8 @@ pub async fn create_user(
             nickname,
             department: req.department,
             roles,
+            account_type: "human".to_string(),
+            bot_permissions: serde_json::json!({}),
         },
         now,
     )
@@ -279,6 +368,24 @@ pub async fn patch_user(
     let user = repo::find_user_by_id(&state.db, user_id)
         .await?
         .ok_or_else(|| AppError::not_found("AUTH_USER_NOT_FOUND", "用户不存在"))?;
+    if let Some(permissions) = req.bot_permissions {
+        let normalized = normalize_bot_permissions(permissions)?;
+        let updated =
+            repo::update_bot_permissions(&state.db, &user, normalized, state.now()).await?;
+        repo::write_audit(
+            &state.db,
+            Some(admin.claims().sub.parse().unwrap_or(Uuid::nil())),
+            "user.bot_permissions",
+            Some("user"),
+            Some(&updated.id.to_string()),
+            Some(serde_json::json!({ "botPermissions": updated.bot_permissions })),
+            ip,
+            user_agent,
+            state.now(),
+        )
+        .await?;
+        return Ok(Json(UserDto::from(&updated)));
+    }
 
     let now = state.now();
     let mut updated = user.clone();

@@ -103,6 +103,8 @@ pub async fn seed_active_user(
             email: email.to_string(),
             username: username.to_string(),
             nickname: format!("用户{username}"),
+            account_type: "human".to_string(),
+            bot_permissions: serde_json::json!({}),
             department: None,
             roles: roles.iter().map(|role| role.to_string()).collect(),
         },

@@ -30,6 +30,10 @@ pub struct UserDto {
     pub status: String,
     /// 角色列表。
     pub roles: Vec<String>,
+    /// 账号类型：human / bot。
+    pub account_type: String,
+    /// Bot 权限矩阵。
+    pub bot_permissions: serde_json::Value,
     /// 创建时间。
     pub created_at: DateTime<FixedOffset>,
 }
@@ -47,6 +51,8 @@ impl From<&user::Model> for UserDto {
             department: model.department.clone(),
             status: model.status.clone(),
             roles: roles_of(model),
+            account_type: model.account_type.clone(),
+            bot_permissions: model.bot_permissions.clone(),
             created_at: model.created_at,
         }
     }

@@ -39,6 +39,11 @@ pub struct Model {
     /// 角色列表（如 `["member"]`）。
     #[sea_orm(column_type = "JsonBinary")]
     pub roles: Json,
+    /// 账号类型：human / bot。
+    pub account_type: String,
+    /// Bot 权限矩阵（模块 → {read, write}）。
+    #[sea_orm(column_type = "JsonBinary")]
+    pub bot_permissions: Json,
     /// 创建时间。
     pub created_at: DateTimeWithTimeZone,
     /// 更新时间。
